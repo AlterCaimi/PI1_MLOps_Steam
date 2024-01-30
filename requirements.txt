@@ -13,3 +13,4 @@ wordcloud
 tqdm
 fastapi
 uvicorn
+scikit-learn
