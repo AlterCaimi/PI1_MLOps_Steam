@@ -28,14 +28,15 @@ def developer(desarrollador: str):
     if not isinstance(desarrollador, str):
         return {'Mensaje': 'El argumento "desarrollador" debe ser una cadena de texto (str).'}
     
-    df_steam = pd.read_parquet('../CleanData/steam_games.parquet')
+    df_steam = pd.read_parquet('../CleanData/steam_games.parquet', columns= ['id', 'developer', 'release_date', 'price'])
 
     df_steam['developer'] = df_steam['developer'].apply(lambda x: x.lower())
     desarrolladores = df_steam['developer'].unique()
     desarrollador = desarrollador.lower()
 
     if desarrollador not in desarrolladores:
-        return {'Mensaje': 'Desarrollador no encontrado. Inserte un desarrollador válido'}
+        del df_steam
+        return {'Mensaje': f'Desarrollador no encontrado. Inserte un desarrollador válido. Desarrolladores: {desarrolladores}'}
     
     df_steam = df_steam[df_steam['developer'] == desarrollador]
     
@@ -45,7 +46,7 @@ def developer(desarrollador: str):
     df = df_steam.groupby(['Año', 'developer']).agg(
                             {'id': 'count', 'free': lambda x: (x.sum() / x.count()) * 100}
                         ).reset_index().rename(columns={'free': 'Contenido Free', 'id': 'Cantidad de Items'})
-    
+    del df_steam
     df['developer'] = df['developer'].apply(lambda x: x.lower())
     
     df = df[df['developer'] == desarrollador].drop(columns= 'developer').sort_values(by= 'Año', ascending=False)
@@ -57,6 +58,8 @@ def developer(desarrollador: str):
         f'Año {int(df.loc[i,"Año"])}': {'Cantidad de Items': int(df.loc[i, 'Cantidad de Items']), 'Contenido Free:': df.loc[i, 'Contenido Free']}
         for i in range(len(df))
     }
+
+
 
     return resultado
 
@@ -72,6 +75,7 @@ def userdata(user_id: str):
     usuarios = df_user['user_id'].unique()
 
     if user_id not in usuarios:
+        del df_user
         return {'Mensaje': 'Usuario no encontrado. Por favor ingrese un usuario válido'}
     
     df_user = df_user[df_user['user_id'] == user_id]
@@ -85,6 +89,10 @@ def userdata(user_id: str):
     df = df.drop(columns=['item_id', 'id'])
     df = df.groupby('user_id').agg('max').reset_index()
 
+    del df_user
+    del df_steam
+    del df_reviews
+
     df['recommend'] = df['recommend'].fillna(0)
     df['recommend'] = round(df['recommend'] / df['items_count'], 2)
     
@@ -96,6 +104,8 @@ def userdata(user_id: str):
         '% de recomendación': str(df.loc[0, 'recommend']) + ' %',
         'Cantidad de Items': int(df.loc[0, 'items_count'])
     }
+
+
     return resultado
 
 #-----------------------------------------ENDPOINT 3---------------------------------------#
@@ -115,6 +125,7 @@ def UserForGenre(genero: str):
         df_steam = df_steam[df_steam[genero] == 1][['id','release_date']]
     except KeyError:
         generos = [col.replace('genre_', '') for col in df_steam.columns if 'genre_' in col]
+        del df_steam
         return {'Mensaje': 'Género no encontrado. Ingrese un género válido', 'Géneros disponibles': generos}
     
     df_steam['Año'] = df_steam['release_date'].dt.year
@@ -126,6 +137,9 @@ def UserForGenre(genero: str):
     df = df.dropna()
     df = df.groupby(['user_id', 'Año']).agg({'playtime_forever': 'sum'}).reset_index()
     df['playtime_forever'] = round(df['playtime_forever']/60, 2)
+
+    del df_steam
+    del df_user
 
     df_1 = df.groupby('user_id').agg({'playtime_forever' : 'sum'}).reset_index()
     ind = df_1['playtime_forever'].idxmax()
@@ -156,12 +170,17 @@ def best_developer_year(anio: int):
     anios = [int(x) for x in anios]
     df_sent = df_sent[df_sent['Año'] == anio]
     if df_sent.empty:
+        del df_sent
         return {'Mensaje': f'No hay registros del año {anio}',
                 'Los años disponibles son:': anios}
 
     df_steam = pd.read_parquet('../CleanData/steam_games.parquet', columns= ['id', 'developer'])
 
     df = df_sent.merge(df_steam, how='left', left_on='item_id', right_on='id')
+
+    del df_sent
+    del df_steam
+
     df.drop(columns=['item_id', 'id'], inplace=True)
     df.rename(columns= {'sentiment_analysis_2': 'rating'}, inplace=True)
 
@@ -196,11 +215,16 @@ def developer_reviews_analysis(desarrolladora: str):
 
     df_steam = df_steam[df_steam['developer'] == desarrolladora]
     if df_steam.empty:
+        del df_steam
         return {f'Desarrolladora no encontrada: {desarrolladora}.': f'Desarrolladoras disponibles {", ".join(developers)}'}
     
     df_sent = pd.read_parquet('../sentiment_analysis_2.parquet', columns= ['item_id', 'sentiment_analysis_2'])
 
     df = df_sent.merge(df_steam,how= 'left', left_on= 'item_id', right_on='id')
+
+    del df_sent
+    del df_steam
+
     df.drop(columns=['id', 'item_id'], inplace=True)
 
     resultado = df[df['developer'] == desarrolladora]['sentiment_analysis_2'].value_counts()
