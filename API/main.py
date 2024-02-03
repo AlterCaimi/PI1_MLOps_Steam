@@ -29,14 +29,18 @@ def developer(desarrollador: str):
         return {'Mensaje': 'El argumento "desarrollador" debe ser una cadena de texto (str).'}
     
     df_steam = pd.read_parquet('../CleanData/steam_games.parquet')
-    df_steam['free'] = df_steam['price'].apply(lambda x: 1 if x == 0 else 0)
-    df_steam['Año'] = df_steam['release_date'].dt.year
-    
-    desarrolladores = df_steam['developer'].str.lower().unique()
+
+    df_steam['developer'] = df_steam['developer'].apply(lambda x: x.lower())
+    desarrolladores = df_steam['developer'].unique()
     desarrollador = desarrollador.lower()
 
     if desarrollador not in desarrolladores:
         return {'Mensaje': 'Desarrollador no encontrado. Inserte un desarrollador válido'}
+    
+    df_steam = df_steam[df_steam['developer'] == desarrollador]
+    
+    df_steam['free'] = df_steam['price'].apply(lambda x: 1 if x == 0 else 0)
+    df_steam['Año'] = df_steam['release_date'].dt.year
 
     df = df_steam.groupby(['Año', 'developer']).agg(
                             {'id': 'count', 'free': lambda x: (x.sum() / x.count()) * 100}
@@ -63,42 +67,34 @@ def userdata(user_id: str):
     if not isinstance(user_id, str):
         return {'Mensaje': 'El argumento user_id debe ser una cadena de texto.'}
 
-    df_user = pd.read_parquet('../CleanData/users_items.parquet', columns=['user_id', 'item_id'])
+    df_user = pd.read_parquet('../CleanData/users_items.parquet', columns=['user_id', 'item_id', 'items_count'])
     
     usuarios = df_user['user_id'].unique()
 
     if user_id not in usuarios:
         return {'Mensaje': 'Usuario no encontrado. Por favor ingrese un usuario válido'}
     
+    df_user = df_user[df_user['user_id'] == user_id]
     df_steam = pd.read_parquet('../CleanData/steam_games.parquet', columns= ['id', 'price'])
     df_reviews = pd.read_parquet('../CleanData/reviews.parquet', columns= ['user_id', 'recommend'])
-
-    df_user['Cantidad de Items'] = df_user.groupby('user_id')['user_id'].transform('count')
     
     df_reviews = df_reviews.groupby('user_id').agg('sum').reset_index()
-
+    
     df = df_user.merge(df_steam, how='left', left_on= 'item_id', right_on= 'id')
     df = df.merge(df_reviews, how = 'left')
     df = df.drop(columns=['item_id', 'id'])
     df = df.groupby('user_id').agg('max').reset_index()
-    
-    df = df[df['user_id'] == user_id]
 
     df['recommend'] = df['recommend'].fillna(0)
-    df['recommend'] = round(df['recommend'] / df['Cantidad de Items'], 2)
-    df['recommend'] = df['recommend'].apply(lambda x: str(x) + ' %')
-    df.rename(columns= {'recommend': '% de recomendación'}, inplace=True)
-    
-    df.rename(columns= {'price': 'Dinero gastado'}, inplace=True)
-    df['Dinero gastado'] = df['Dinero gastado'].apply(lambda x: str(x) + ' USD')
+    df['recommend'] = round(df['recommend'] / df['items_count'], 2)
     
     df.reset_index(inplace=True, drop=True)
 
     resultado = {
         'Usuario': df.loc[0, 'user_id'],
-        'Dinero gastado': df.loc[0, 'Dinero gastado'],
-        '% de recomendación': df.loc[0, '% de recomendación'],
-        'Cantidad de Items': int(df.loc[0, 'Cantidad de Items'])
+        'Dinero gastado': str(df.loc[0, 'price']) + ' USD',
+        '% de recomendación': str(df.loc[0, 'recommend']) + ' %',
+        'Cantidad de Items': int(df.loc[0, 'items_count'])
     }
     return resultado
 
@@ -108,7 +104,7 @@ def UserForGenre(genero: str):
     
     if not isinstance(genero, str):
         return {'Mensaje': 'El género ingresado debe ser una cadena de texto (string)'}
-
+    
     genero = 'genre_' + genero
     genero = genero.lower()
 
