@@ -1,16 +1,11 @@
 pandas
-polars
 numpy
 sklearn
 matplotlib
 seaborn
 scipy
-langdetect
-nltk
 unidecode
 spacy
-wordcloud
-tqdm
 fastapi
 uvicorn
 scikit-learn

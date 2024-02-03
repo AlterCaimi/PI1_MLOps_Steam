@@ -1,4 +1,4 @@
-![Portada](assets/)
+![Portada](assets/steam-portada.png)
 
 # Proyecto Individual N°1 - MLOps <br>
 En este repositorio encontrarás el desarrollo del proyecto individual N°1, MLOps, correspondiente a la etapa Labs del Bootcamp Henry. <br>
@@ -24,6 +24,8 @@ En cada uno de los archivos encontrarás el código comentado que permitirá ent
 
 ## EDA <br>
 Luego de realizada la limpieza de los datos, se realizó un [Análisis Exploratorio de Datos](EDA_steam.ipynb). El objetivo del análisis es entender las relaciones entre los diferentes datos, encontrar insights que permitan mejorar la interpreatación de los mismos y retroalimentar el desarrollo del modelo con nuevas perspectivas. En el notebook encontrarás visualizaciones que muestran información interesante, como qué géneros de juego son los más consumidos, los más caros, o qué palabras son las más frecuentes en los títulos. <br>
+La siguiente gráfica muestra los 10 juegos más recomendados.
+![top_10](/assets/top10_games.png)
 
 ## Análisis de sentimiento <br>
 Se realizó un [análisis de sentimiento](sentiment_analysis.ipynb) de la columna 'reviews' del archivo users_reviews. De esta manera se clasificó a los comentarios en tres categorías con tres valores numérivos:
@@ -31,6 +33,8 @@ Se realizó un [análisis de sentimiento](sentiment_analysis.ipynb) de la column
 - Comentarios neutrales: 1
 - Comentarios negativos: 0 <br>
 De esta manera, cada comentario quedó dentro de una categoría. A su vez, cada juego tiene normalmente más de un comentario, que pueden tomar cualquiera de los tres valores.<br>
+La siguiente nube de palabras corresponde a las palabras (lematizadas) más frecuentes en los comentarios positivos. <br>
+![nube_positivos](assets/wordcloud_sent.png)
 
 ## Sistema de recomendación <br>
 Se optó por desarrollar el sistema de recomendación ítem-ítem, basado en la distancia de coseno. Así, mediante feature engineering, cada ítem es un vector cuyas componentes son las siguientes características:
@@ -58,3 +62,7 @@ Los endpoints son los siguientes:
 Recuerda que puedes consultar la documentación de la API agregando [/docs](https://steam-mlops-4stb.onrender.com/docs). 
 
 
+## Autor
+Alter Caimi <br>
+[Linkedin](https://www.linkedin.com/in/alter-caimi) <br>
+[Instagram](https://www.instagram.com/alt3rk/) <br>
