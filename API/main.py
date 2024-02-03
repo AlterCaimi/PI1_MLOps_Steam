@@ -107,22 +107,20 @@ def UserForGenre(genero: str):
     
     genero = 'genre_' + genero
     genero = genero.lower()
-
+    
     df_steam = pd.read_parquet('../CleanData/steam_games.parquet')
     df_steam = df_steam.rename(columns= lambda x: x.lower())
 
-    columnas = list(df_steam.columns)
-
-    if genero not in columnas:
-        generos = [col.replace('genre_', '') for col in columnas if 'genre_' in col]
-        return {'Mensaje': 'Género no encontrado. Ingrese un género válido',
-                'Géneros disponibles': generos}
-
-    df_user = pd.read_parquet('../CleanData/users_items.parquet', columns=['user_id', 'item_id', 'playtime_forever'])
-
-    df_steam = df_steam[df_steam[genero] == 1][['id','release_date']]
+    try:
+        df_steam = df_steam[df_steam[genero] == 1][['id','release_date']]
+    except KeyError:
+        generos = [col.replace('genre_', '') for col in df_steam.columns if 'genre_' in col]
+        return {'Mensaje': 'Género no encontrado. Ingrese un género válido', 'Géneros disponibles': generos}
+    
     df_steam['Año'] = df_steam['release_date'].dt.year
     df_steam.drop(columns= 'release_date', inplace= True)
+
+    df_user = pd.read_parquet('../CleanData/users_items.parquet', columns=['user_id', 'item_id', 'playtime_forever'])
 
     df = df_user.merge(df_steam, how= 'left', left_on= 'item_id', right_on= 'id')
     df = df.dropna()
@@ -154,14 +152,13 @@ def best_developer_year(anio: int):
         return {f'Error {e}': 'Debe insertar un número entero.'}
     
     df_sent = pd.read_parquet('../sentiment_analysis_2.parquet', columns= ['item_id', 'sentiment_analysis_2', 'recommend', 'Año'])
-
     anios = list(df_sent['Año'].unique())
-
-    if anio not in anios:
-        anios = [int(x) for x in anios]
+    anios = [int(x) for x in anios]
+    df_sent = df_sent[df_sent['Año'] == anio]
+    if df_sent.empty:
         return {'Mensaje': f'No hay registros del año {anio}',
                 'Los años disponibles son:': anios}
-    
+
     df_steam = pd.read_parquet('../CleanData/steam_games.parquet', columns= ['id', 'developer'])
 
     df = df_sent.merge(df_steam, how='left', left_on='item_id', right_on='id')
@@ -195,12 +192,11 @@ def developer_reviews_analysis(desarrolladora: str):
     
     df_steam = pd.read_parquet('../CleanData/steam_games.parquet', columns= ['id', 'developer'])
     df_steam['developer'] = df_steam['developer'].apply(lambda x: x.lower())
+    developers = list(df_steam['developer'].unique()) 
 
-    developers = list(df_steam['developer'].unique())
-    
-    if desarrolladora not in developers:
-        return {'Mensaje': 'Desarrolladora no encontrada. Por favor ingrese una desarrolladora válida.',
-                'Desarrolladoras disponibles': developers}
+    df_steam = df_steam[df_steam['developer'] == desarrolladora]
+    if df_steam.empty:
+        return {f'Desarrolladora no encontrada: {desarrolladora}.': f'Desarrolladoras disponibles {", ".join(developers)}'}
     
     df_sent = pd.read_parquet('../sentiment_analysis_2.parquet', columns= ['item_id', 'sentiment_analysis_2'])
 
