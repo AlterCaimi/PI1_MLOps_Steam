@@ -1,10 +1,15 @@
 from fastapi import FastAPI
 import pandas as pd 
+import uvicorn
 import warnings
 warnings.filterwarnings('ignore')
 from recommender_item_item import item_item_recom
+import os
 
 app = FastAPI()
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
 
 #http://127.0.0.1:8000
 
