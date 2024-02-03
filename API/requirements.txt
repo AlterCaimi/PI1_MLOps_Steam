@@ -1,11 +1,6 @@
 pandas
 numpy
 sklearn
-matplotlib
-seaborn
-scipy
-unidecode
-spacy
 fastapi
 uvicorn
 scikit-learn

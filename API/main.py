@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 import pandas as pd 
+import warnings
+warnings.filterwarnings('ignore')
 from recommender_item_item import item_item_recom
 
 app = FastAPI()
@@ -10,6 +12,11 @@ app = FastAPI()
 @app.get("/")
 def index():
     return 'API desarrollada para el PI1 MLOps por Alter Caimi'
+
+df_steam = pd.read_parquet('../CleanData/steam_games.parquet')
+df_user = pd.read_parquet('../CleanData/users_items.parquet')
+df_reviews = pd.read_parquet('../CleanData/reviews.parquet')
+df_sent = pd.read_parquet('../sentiment_analysis_2.parquet')
 
 #-----------------------------------------ENDPOINT 1---------------------------------------#
 @app.get('/developer/{desarrollador}')
@@ -28,7 +35,6 @@ def developer(desarrollador: str):
     if not isinstance(desarrollador, str):
         return {'Mensaje': 'El argumento "desarrollador" debe ser una cadena de texto (str).'}
     
-    df_steam = pd.read_parquet('../CleanData/steam_games.parquet')
     df_steam['free'] = df_steam['price'].apply(lambda x: 1 if x == 0 else 0)
     df_steam['Año'] = df_steam['release_date'].dt.year
     
@@ -63,42 +69,36 @@ def userdata(user_id: str):
     if not isinstance(user_id, str):
         return {'Mensaje': 'El argumento user_id debe ser una cadena de texto.'}
 
-    df_user = pd.read_parquet('../CleanData/users_items.parquet', columns=['user_id', 'item_id'])
+    df_user_n = df_user[['user_id', 'item_id', 'items_count']]
     
-    usuarios = df_user['user_id'].unique()
+    usuarios = df_user_n['user_id'].unique()
 
     if user_id not in usuarios:
         return {'Mensaje': 'Usuario no encontrado. Por favor ingrese un usuario válido'}
     
-    df_steam = pd.read_parquet('../CleanData/steam_games.parquet', columns= ['id', 'price'])
-    df_reviews = pd.read_parquet('../CleanData/reviews.parquet', columns= ['user_id', 'recommend'])
-
-    df_user['Cantidad de Items'] = df_user.groupby('user_id')['user_id'].transform('count')
+    df_steam_n = df_steam[['id', 'price']]
+    df_reviews_n = df_reviews[['user_id', 'recommend']]
     
-    df_reviews = df_reviews.groupby('user_id').agg('sum').reset_index()
+    df_reviews_n = df_reviews_n.groupby('user_id').agg('sum').reset_index()
 
-    df = df_user.merge(df_steam, how='left', left_on= 'item_id', right_on= 'id')
-    df = df.merge(df_reviews, how = 'left')
+    df = df_user_n.merge(df_steam_n, how='left', left_on= 'item_id', right_on= 'id')
+    df = df.merge(df_reviews_n, how = 'left')
     df = df.drop(columns=['item_id', 'id'])
     df = df.groupby('user_id').agg('max').reset_index()
-    
     df = df[df['user_id'] == user_id]
 
     df['recommend'] = df['recommend'].fillna(0)
-    df['recommend'] = round(df['recommend'] / df['Cantidad de Items'], 2)
+    df['recommend'] = round(df['recommend'] / df['items_count'], 2)
     df['recommend'] = df['recommend'].apply(lambda x: str(x) + ' %')
     df.rename(columns= {'recommend': '% de recomendación'}, inplace=True)
-    
-    df.rename(columns= {'price': 'Dinero gastado'}, inplace=True)
-    df['Dinero gastado'] = df['Dinero gastado'].apply(lambda x: str(x) + ' USD')
     
     df.reset_index(inplace=True, drop=True)
 
     resultado = {
         'Usuario': df.loc[0, 'user_id'],
-        'Dinero gastado': df.loc[0, 'Dinero gastado'],
+        'Dinero gastado': str(df.loc[0, 'price']) + 'USD',
         '% de recomendación': df.loc[0, '% de recomendación'],
-        'Cantidad de Items': int(df.loc[0, 'Cantidad de Items'])
+        'Cantidad de Items': int(df.loc[0, 'items_count'])
     }
     return resultado
 
@@ -112,23 +112,22 @@ def UserForGenre(genero: str):
     genero = 'genre_' + genero
     genero = genero.lower()
 
-    df_steam = pd.read_parquet('../CleanData/steam_games.parquet')
-    df_steam = df_steam.rename(columns= lambda x: x.lower())
+    df_steam_n = df_steam.rename(columns= lambda x: x.lower())
 
-    columnas = list(df_steam.columns)
+    columnas = list(df_steam_n.columns)
 
     if genero not in columnas:
         generos = [col.replace('genre_', '') for col in columnas if 'genre_' in col]
         return {'Mensaje': 'Género no encontrado. Ingrese un género válido',
                 'Géneros disponibles': generos}
 
-    df_user = pd.read_parquet('../CleanData/users_items.parquet', columns=['user_id', 'item_id', 'playtime_forever'])
+    df_user_n = df_user[['user_id', 'item_id', 'playtime_forever']]
 
-    df_steam = df_steam[df_steam[genero] == 1][['id','release_date']]
-    df_steam['Año'] = df_steam['release_date'].dt.year
-    df_steam.drop(columns= 'release_date', inplace= True)
+    df_steam_n = df_steam_n[df_steam_n[genero] == 1][['id','release_date']]
+    df_steam_n['Año'] = df_steam_n['release_date'].dt.year
+    df_steam_n.drop(columns= 'release_date', inplace= True)
 
-    df = df_user.merge(df_steam, how= 'left', left_on= 'item_id', right_on= 'id')
+    df = df_user_n.merge(df_steam_n, how= 'left', left_on= 'item_id', right_on= 'id')
     df = df.dropna()
     df = df.groupby(['user_id', 'Año']).agg({'playtime_forever': 'sum'}).reset_index()
     df['playtime_forever'] = round(df['playtime_forever']/60, 2)
@@ -157,7 +156,7 @@ def best_developer_year(anio: int):
     except Exception as e:
         return {f'Error {e}': 'Debe insertar un número entero.'}
     
-    df_sent = pd.read_parquet('../sentiment_analysis_2.parquet', columns= ['item_id', 'sentiment_analysis_2', 'recommend', 'Año'])
+    df_sent_n = df_sent[['item_id', 'sentiment_analysis_2', 'recommend', 'Año']]
 
     anios = list(df_sent['Año'].unique())
 
@@ -166,9 +165,9 @@ def best_developer_year(anio: int):
         return {'Mensaje': f'No hay registros del año {anio}',
                 'Los años disponibles son:': anios}
     
-    df_steam = pd.read_parquet('../CleanData/steam_games.parquet', columns= ['id', 'developer'])
+    df_steam_n = df_steam[['id', 'developer']]
 
-    df = df_sent.merge(df_steam, how='left', left_on='item_id', right_on='id')
+    df = df_sent_n.merge(df_steam_n, how='left', left_on='item_id', right_on='id')
     df.drop(columns=['item_id', 'id'], inplace=True)
     df.rename(columns= {'sentiment_analysis_2': 'rating'}, inplace=True)
 
@@ -197,18 +196,18 @@ def developer_reviews_analysis(desarrolladora: str):
     
     desarrolladora = desarrolladora.lower()
     
-    df_steam = pd.read_parquet('../CleanData/steam_games.parquet', columns= ['id', 'developer'])
-    df_steam['developer'] = df_steam['developer'].apply(lambda x: x.lower())
+    df_steam_n = df_steam[['id', 'developer']]
+    df_steam_n['developer'] = df_steam_n['developer'].apply(lambda x: x.lower())
 
-    developers = list(df_steam['developer'].unique())
+    developers = list(df_steam_n['developer'].unique())
     
     if desarrolladora not in developers:
         return {'Mensaje': 'Desarrolladora no encontrada. Por favor ingrese una desarrolladora válida.',
                 'Desarrolladoras disponibles': developers}
     
-    df_sent = pd.read_parquet('../sentiment_analysis_2.parquet', columns= ['item_id', 'sentiment_analysis_2'])
+    df_sent_n = df_sent[['item_id', 'sentiment_analysis_2']]
 
-    df = df_sent.merge(df_steam,how= 'left', left_on= 'item_id', right_on='id')
+    df = df_sent_n.merge(df_steam_n,how= 'left', left_on= 'item_id', right_on='id')
     df.drop(columns=['id', 'item_id'], inplace=True)
 
     resultado = df[df['developer'] == desarrolladora]['sentiment_analysis_2'].value_counts()
