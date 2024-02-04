@@ -137,17 +137,14 @@ def UserForGenre(genero: str):
     del df_steam
     del df_user
 
-    df_1 = df.groupby('user_id').agg({'playtime_forever' : 'sum'}).reset_index()
-    ind = df_1['playtime_forever'].idxmax()
-    usuario = df_1.loc[ind, 'user_id']
-    df = df[df['user_id'] == usuario]
-    df.rename(columns= {'playtime_forever': 'Horas jugadas'}, inplace=True)
+    usuario_max_horas = df.loc[df['playtime_forever'].idxmax(), 'user_id']
+    df = df[df['user_id'] == usuario_max_horas]
 
     df.reset_index(inplace=True, drop=True)
     
     resultado = {
         f'Usuario con mas horas jugadas para el género {genero.replace("genre_", "")}:': df.loc[0,'user_id'],
-        'Horas jugadas:': [{'Año:': int(df.loc[i,'Año']), 'Horas:': int(df.loc[i,'Horas jugadas'])} for i in range(len(df))]
+        'Horas jugadas:': [{'Año:': int(df.loc[i,'Año']), 'Horas:': int(df.loc[i,'playtime_forever'])} for i in range(len(df))]
     }
 
     return resultado
