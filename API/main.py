@@ -70,40 +70,35 @@ def userdata(user_id: str):
         return {'Mensaje': 'El argumento user_id debe ser una cadena de texto.'}
 
     df_user = pd.read_parquet('../CleanData/users_items.parquet', columns=['user_id', 'item_id', 'items_count'])
-    df_user = df_user[df_user['user_id'] == user_id]
+    df_user = df_user[df_user['user_id'].isin([user_id])]
     if df_user.empty:
         del df_user
         return {'Mensaje': 'Usuario no encontrado. Por favor ingrese un usuario válido'}
-
+    
     df_steam = pd.read_parquet('../CleanData/steam_games.parquet', columns= ['id', 'price'])
 
     df = df_user.merge(df_steam, how='left', left_on= 'item_id', right_on= 'id')
     del df_user
     del df_steam
 
-    df_reviews = pd.read_parquet('../CleanData/reviews.parquet', columns= ['user_id', 'recommend'])
-    df_reviews = df_reviews[df_reviews['user_id'] == user_id]
-    df_reviews = df_reviews.groupby('user_id').agg('sum').reset_index()
-
-    df = df.merge(df_reviews, how = 'left')
-    del df_reviews
-
-    df = df.drop(columns=['item_id', 'id'])
-    df = df.groupby('user_id').agg('max').reset_index()
-
-    df['recommend'] = df['recommend'].fillna(0)
-    df['recommend'] = round(df['recommend'] / df['items_count'], 2)
-    
-    df.reset_index(inplace=True, drop=True)
-
-    resultado = {
-        'Usuario': df.loc[0, 'user_id'],
-        'Dinero gastado': str(df.loc[0, 'price']) + ' USD',
-        '% de recomendación': str(df.loc[0, 'recommend']) + ' %',
-        'Cantidad de Items': int(df.loc[0, 'items_count'])
-    }
+    dinero = df['price'].sum()
+    cantidad_items = df['items_count'].max()
 
     del df
+
+    df_reviews = pd.read_parquet('../CleanData/reviews.parquet', columns= ['user_id', 'recommend'])
+    df_reviews = df_reviews[df_reviews['user_id'].isin([user_id])]
+    recom = df_reviews['recommend'].sum()
+
+    del df_reviews
+    
+    resultado = {
+        'Usuario': user_id,
+        'Dinero gastado': str(dinero) + ' USD',
+        '% de recomendación': str(round(recom / cantidad_items, 2)) + ' %',
+        'Cantidad de Items': int(cantidad_items)
+    }
+
     return resultado
 
 #-----------------------------------------ENDPOINT 3---------------------------------------#
