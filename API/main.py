@@ -117,16 +117,12 @@ def UserForGenre(genero: str):
     
     genero = 'genre_' + genero
     genero = genero.lower()
-    
-    df_steam = pd.read_parquet('../CleanData/steam_games.parquet')
-    df_steam = df_steam.rename(columns= lambda x: x.lower())
 
     try:
-        df_steam = df_steam[df_steam[genero] == 1][['id','release_date']]
-    except KeyError:
-        generos = [col.replace('genre_', '') for col in df_steam.columns if 'genre_' in col]
-        del df_steam
-        return {'Mensaje': 'Género no encontrado. Ingrese un género válido', 'Géneros disponibles': generos}
+        df_steam = pd.read_parquet('../CleanData/steam_games.parquet', columns= ['id', 'release_date', genero])
+        df_steam = df_steam[df_steam[genero].isin([1])]
+    except Exception:
+        return {'Error': 'Género no encontrado. Ingrese un género válido'}
     
     df_steam['Año'] = df_steam['release_date'].dt.year
     df_steam.drop(columns= 'release_date', inplace= True)
