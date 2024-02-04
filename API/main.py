@@ -69,7 +69,6 @@ def userdata(user_id: str):
     if not isinstance(user_id, str):
         return {'Mensaje': 'El argumento user_id debe ser una cadena de texto.'}
 
-
     df_user = pd.read_parquet('../CleanData/users_items.parquet', columns=['user_id', 'item_id', 'items_count'])
     df_user = df_user[df_user['user_id'] == user_id]
     if df_user.empty:
@@ -83,13 +82,14 @@ def userdata(user_id: str):
     del df_steam
 
     df_reviews = pd.read_parquet('../CleanData/reviews.parquet', columns= ['user_id', 'recommend'])
+    df_reviews = df_reviews[df_reviews['user_id'] == user_id]
     df_reviews = df_reviews.groupby('user_id').agg('sum').reset_index()
 
     df = df.merge(df_reviews, how = 'left')
+    del df_reviews
+
     df = df.drop(columns=['item_id', 'id'])
     df = df.groupby('user_id').agg('max').reset_index()
-
-    del df_reviews
 
     df['recommend'] = df['recommend'].fillna(0)
     df['recommend'] = round(df['recommend'] / df['items_count'], 2)
@@ -212,7 +212,7 @@ def developer_reviews_analysis(desarrolladora: str):
     resultado = df[df['developer'] == desarrolladora]['sentiment_analysis_2'].value_counts()
 
     del df
-    
+
     resultado_dic = {
         desarrolladora: [f'Negative = {resultado[0]}', f'Positive = {resultado[2]}']
     }
