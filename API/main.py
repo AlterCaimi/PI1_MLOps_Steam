@@ -123,19 +123,17 @@ def UserForGenre(genero: str):
         df_steam = df_steam[df_steam[genero].isin([1])]
     except Exception:
         return {'Error': 'Género no encontrado. Ingrese un género válido'}
-    
+
     df_steam['Año'] = df_steam['release_date'].dt.year
     df_steam.drop(columns= 'release_date', inplace= True)
 
     df_user = pd.read_parquet('../CleanData/users_items.parquet', columns=['user_id', 'item_id', 'playtime_forever'])
-
-    df = df_user.merge(df_steam, how= 'left', left_on= 'item_id', right_on= 'id')
-    df = df.dropna()
-    df = df.groupby(['user_id', 'Año']).agg({'playtime_forever': 'sum'}).reset_index()
-    df['playtime_forever'] = round(df['playtime_forever']/60, 2)
+    df = df_user.merge(df_steam, how= 'right', left_on= 'item_id', right_on= 'id')
 
     del df_steam
-    del df_user
+    del df_user    
+    
+    df = df.groupby(['user_id', 'Año']).agg({'playtime_forever': 'sum'}).reset_index()
 
     usuario_max_horas = df.loc[df['playtime_forever'].idxmax(), 'user_id']
     df = df[df['user_id'] == usuario_max_horas]
@@ -144,7 +142,7 @@ def UserForGenre(genero: str):
     
     resultado = {
         f'Usuario con mas horas jugadas para el género {genero.replace("genre_", "")}:': df.loc[0,'user_id'],
-        'Horas jugadas:': [{'Año:': int(df.loc[i,'Año']), 'Horas:': int(df.loc[i,'playtime_forever'])} for i in range(len(df))]
+        'Horas jugadas:': [{'Año:': int(df.loc[i,'Año']), 'Horas:': float(round(df.loc[i,'playtime_forever']/60, 2))} for i in range(len(df))]
     }
 
     return resultado
