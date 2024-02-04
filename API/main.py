@@ -59,8 +59,7 @@ def developer(desarrollador: str):
         for i in range(len(df))
     }
 
-
-
+    del df
     return resultado
 
 #-----------------------------------------ENDPOINT 2---------------------------------------#
@@ -103,7 +102,8 @@ def userdata(user_id: str):
         '% de recomendación': str(df.loc[0, 'recommend']) + ' %',
         'Cantidad de Items': int(df.loc[0, 'items_count'])
     }
-    
+
+    del df
     return resultado
 
 #-----------------------------------------ENDPOINT 3---------------------------------------#
@@ -135,6 +135,7 @@ def UserForGenre(genero: str):
         'Horas jugadas:': [{'Año:': int(df.loc[i,'Año']), 'Horas:': float(round(df.loc[i,'playtime_forever']/60, 2))} for i in range(len(df))]
     }
 
+    del df
     return resultado
 
 #-----------------------------------------ENDPOINT 4---------------------------------------#
@@ -178,7 +179,7 @@ def best_developer_year(anio: int):
                 'Puesto 2': df.loc[1, 'developer'],
                 'Puesto 3': df.loc[2, 'developer']
             }
-
+    del df
     return result
 
 #-----------------------------------------ENDPOINT 5---------------------------------------#
@@ -210,6 +211,8 @@ def developer_reviews_analysis(desarrolladora: str):
 
     resultado = df[df['developer'] == desarrolladora]['sentiment_analysis_2'].value_counts()
 
+    del df
+    
     resultado_dic = {
         desarrolladora: [f'Negative = {resultado[0]}', f'Positive = {resultado[2]}']
     }
