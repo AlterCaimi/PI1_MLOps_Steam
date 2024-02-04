@@ -18,8 +18,11 @@ def item_item_recom(item_id, n_recom=5, umbral= 0.999):
 
     similaridades = {}                  # iniciamos diccionario de similaridades
     contador = 0                        # contador para realizar corte por umbral
+    
     for i in range(len(df_items)):      # recorremos el dataframe
+
         if i != indice:                 # no tomamos el indice del juego de entrada
+
             sim = cosine_similarity(df_items.iloc[indice,:].values.reshape(1,-1), df_items.iloc[i,:].values.reshape(1,-1))[0][0]
             similaridades[i] = sim      # calclualmos la similaridad y la guardamos en el diccionario
             if sim > umbral:            # verificamos si la similaridad es mayor al umbral predeterimnado

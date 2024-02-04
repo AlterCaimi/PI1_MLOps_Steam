@@ -70,27 +70,26 @@ def userdata(user_id: str):
     if not isinstance(user_id, str):
         return {'Mensaje': 'El argumento user_id debe ser una cadena de texto.'}
 
-    df_user = pd.read_parquet('../CleanData/users_items.parquet', columns=['user_id', 'item_id', 'items_count'])
-    
-    usuarios = df_user['user_id'].unique()
 
-    if user_id not in usuarios:
+    df_user = pd.read_parquet('../CleanData/users_items.parquet', columns=['user_id', 'item_id', 'items_count'])
+    df_user = df_user[df_user['user_id'] == user_id]
+    if df_user.empty:
         del df_user
         return {'Mensaje': 'Usuario no encontrado. Por favor ingrese un usuario válido'}
-    
-    df_user = df_user[df_user['user_id'] == user_id]
+
     df_steam = pd.read_parquet('../CleanData/steam_games.parquet', columns= ['id', 'price'])
-    df_reviews = pd.read_parquet('../CleanData/reviews.parquet', columns= ['user_id', 'recommend'])
-    
-    df_reviews = df_reviews.groupby('user_id').agg('sum').reset_index()
-    
+
     df = df_user.merge(df_steam, how='left', left_on= 'item_id', right_on= 'id')
+    del df_user
+    del df_steam
+
+    df_reviews = pd.read_parquet('../CleanData/reviews.parquet', columns= ['user_id', 'recommend'])
+    df_reviews = df_reviews.groupby('user_id').agg('sum').reset_index()
+
     df = df.merge(df_reviews, how = 'left')
     df = df.drop(columns=['item_id', 'id'])
     df = df.groupby('user_id').agg('max').reset_index()
 
-    del df_user
-    del df_steam
     del df_reviews
 
     df['recommend'] = df['recommend'].fillna(0)
@@ -104,8 +103,7 @@ def userdata(user_id: str):
         '% de recomendación': str(df.loc[0, 'recommend']) + ' %',
         'Cantidad de Items': int(df.loc[0, 'items_count'])
     }
-
-
+    
     return resultado
 
 #-----------------------------------------ENDPOINT 3---------------------------------------#
@@ -118,30 +116,22 @@ def UserForGenre(genero: str):
     genero = 'genre_' + genero
     genero = genero.lower()
 
+    query_condition = genero + ' == 1'
+
     try:
-        df_steam = pd.read_parquet('../CleanData/steam_games.parquet', columns= ['id', 'release_date', genero])
-        df_steam = df_steam[df_steam[genero].isin([1])]
+        df = pd.read_parquet('../CleanData/userforgenre.parquet', columns=['user_id', 'Año', 'playtime_forever', genero]).query(query_condition).drop(columns=genero)
     except Exception:
         return {'Error': 'Género no encontrado. Ingrese un género válido'}
 
-    df_steam['Año'] = df_steam['release_date'].dt.year
-    df_steam.drop(columns= 'release_date', inplace= True)
+    df = df.groupby(['user_id', 'Año']).agg({'playtime_forever': 'sum'}).reset_index() 
 
-    df_user = pd.read_parquet('../CleanData/users_items.parquet', columns=['user_id', 'item_id', 'playtime_forever'])
-    df = df_user.merge(df_steam, how= 'right', left_on= 'item_id', right_on= 'id')
 
-    del df_steam
-    del df_user    
-    
-    df = df.groupby(['user_id', 'Año']).agg({'playtime_forever': 'sum'}).reset_index()
-
-    usuario_max_horas = df.loc[df['playtime_forever'].idxmax(), 'user_id']
+    usuario_max_horas = df.nlargest(1, 'playtime_forever', 'all')['user_id'].values[0]
     df = df[df['user_id'] == usuario_max_horas]
-
     df.reset_index(inplace=True, drop=True)
     
     resultado = {
-        f'Usuario con mas horas jugadas para el género {genero.replace("genre_", "")}:': df.loc[0,'user_id'],
+        f'Usuario con mas horas jugadas para el género {genero.replace("genre_", "")}:': usuario_max_horas,
         'Horas jugadas:': [{'Año:': int(df.loc[i,'Año']), 'Horas:': float(round(df.loc[i,'playtime_forever']/60, 2))} for i in range(len(df))]
     }
 
