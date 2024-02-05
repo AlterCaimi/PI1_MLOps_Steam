@@ -59,7 +59,8 @@ Los endpoints son los siguientes:
 - Endpoint 4: /best_developer_year/{anio}: Para el año ingresado, retorna los 3 desarrolladores con más comentarios positivos.
 - Endpoint 5: /developer_reviews_analysis/{desarrolladora}: para el developer ingresado, retorna la cantidad de comentarios positivos y negativos totales.
 - Endpoint 6: /recomendacion_juego/{id_producto}: para el id de producto ingresado, recomienda 5 juegos relacionados. <br>
-Recuerda que puedes consultar la documentación de la API agregando [/docs](https://steam-mlops-4stb.onrender.com/docs). 
+Recuerda que puedes consultar la documentación de la API agregando [/docs](https://steam-mlops-4stb.onrender.com/docs). <br>
+Además, haciendo [click aquí](https://www.youtube.com/watch?v=c2r-wZxHRm4&t=48s) puedes ver un video demostrativo de su funcionamiento.
 
 
 ## Autor
