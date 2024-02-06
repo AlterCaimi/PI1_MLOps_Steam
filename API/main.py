@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 import pandas as pd 
-import polars as pl 
 from recommender_item_item import item_item_recom
 
 app = FastAPI()
@@ -85,37 +84,32 @@ def userdata(user_id: str):
         '% de recomendación': str(df.loc[0,'porcentaje_recom']) + ' %',
         'Cantidad de Items': int(df.loc[0,'items_count'])
     }
-
+    del df
     return resultado
 
 #-----------------------------------------ENDPOINT 3---------------------------------------#
 @app.get('/UserForGenre/{genero}')
 def UserForGenre(genero: str):
-
+    
     if not isinstance(genero, str):
         return {'Mensaje': 'El género ingresado debe ser una cadena de texto (string)'}
-
-    genero = 'genre_' + genero.lower()
+    
+    genero = genero.lower()
 
     try:
-        df = pl.read_parquet('../CleanData/userforgenre.parquet', columns=['user_id', 'Año', 'playtime_forever', genero])
-        df = df.filter(pl.col(genero) == 1)
+        df = pd.read_parquet('../CleanData/userforgenre2.parquet')
+        df = df[df['genres'].isin(['action'])].drop(columns='genres')
     except Exception:
         return {'Error': 'Género no encontrado. Ingrese un género válido'}
 
-    df = df.group_by(['user_id', 'Año']).agg(pl.col('playtime_forever').sum())
+    usuario_max_horas = df.groupby('user_id').agg({'playtime_forever': 'sum'}).sort_values('playtime_forever').tail(1).index[0]
+    df = df[df['user_id'].isin([usuario_max_horas])].reset_index(drop=True)
 
-    usuario_max_horas = df.sort('playtime_forever').tail(1)['user_id'][0]
-
-    df = df.filter(pl.col('user_id') == usuario_max_horas)
-    df = df.sort('Año')
-    
     resultado = {
-        f'Usuario con mas horas jugadas para el género {genero.replace("genre_", "")}:': usuario_max_horas,
-        'Horas jugadas:': [{'Año:': int(df[i,'Año']), 'Horas:': float(round(df[i,'playtime_forever']/60, 2))} for i in range(len(df))]
+        f'Usuario con mas horas jugadas para el género {genero}:': usuario_max_horas,
+        'Horas jugadas:': [{'Año:': int(df.loc[i,'Año']), 'Horas:': float(df.loc[i,'playtime_forever'])} for i in range(len(df))]
     }
     del df
-    
     return resultado
 
 #-----------------------------------------ENDPOINT 4---------------------------------------#

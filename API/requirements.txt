@@ -1,5 +1,4 @@
 pandas
-polars
 sklearn
 fastapi
 uvicorn
