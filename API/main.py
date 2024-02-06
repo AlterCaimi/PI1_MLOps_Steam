@@ -90,15 +90,15 @@ def userdata(user_id: str):
 #-----------------------------------------ENDPOINT 3---------------------------------------#
 @app.get('/UserForGenre/{genero}')
 def UserForGenre(genero: str):
-    
+
     if not isinstance(genero, str):
         return {'Mensaje': 'El género ingresado debe ser una cadena de texto (string)'}
     
     genero = genero.lower()
 
     try:
-        df = pd.read_parquet('../CleanData/userforgenre2.parquet')
-        df = df[df['genres'].isin(['action'])].drop(columns='genres')
+        df = pd.read_parquet('../CleanData/userforgenre.parquet')
+        df = df[df['genres'].isin([genero])].drop(columns='genres')
     except Exception:
         return {'Error': 'Género no encontrado. Ingrese un género válido'}
 
@@ -121,32 +121,17 @@ def best_developer_year(anio: int):
     except Exception as e:
         return {f'Error {e}': 'Debe insertar un número entero.'}
     
-    df_sent = pd.read_parquet('../sentiment_analysis_2.parquet', columns= ['item_id', 'sentiment_analysis_2', 'recommend', 'Año'])
-    anios = list(df_sent['Año'].unique())
+    df = pd.read_parquet('../CleanData/best_developer_year.parquet')
+    anios = list(df['Año'].unique())
     anios = [int(x) for x in anios]
-    df_sent = df_sent[df_sent['Año'] == anio]
-    if df_sent.empty:
-        del df_sent
+    
+    df = df[df['Año'].isin([anio])]
+    if len(df) == 0:
+        del df
         return {'Mensaje': f'No hay registros del año {anio}',
                 'Los años disponibles son:': anios}
 
-    df_steam = pd.read_parquet('../CleanData/steam_games.parquet', columns= ['id', 'developer'])
-
-    df = df_sent.merge(df_steam, how='left', left_on='item_id', right_on='id')
-
-    del df_sent
-    del df_steam
-
-    df.drop(columns=['item_id', 'id'], inplace=True)
-    df.rename(columns= {'sentiment_analysis_2': 'rating'}, inplace=True)
-
-    df = df.groupby(['developer', 'Año']).agg({'rating': (lambda x: (x == 2).sum()), 'recommend': 'sum'}).reset_index()
-    df = df[df['Año'] == anio]
-    
-    df['puntaje'] = df['rating'] + df['recommend']
-
-    df.sort_values(by= 'puntaje', ascending=False, inplace=True)
-    df.reset_index(inplace=True, drop= True)
+    df = df.sort_values('rating', ascending=False).reset_index()
     
     result = {
                 'Puesto 1': df.loc[0, 'developer'],
@@ -165,33 +150,22 @@ def developer_reviews_analysis(desarrolladora: str):
     
     desarrolladora = desarrolladora.lower()
     
-    df_steam = pd.read_parquet('../CleanData/steam_games.parquet', columns= ['id', 'developer'])
-    df_steam['developer'] = df_steam['developer'].apply(lambda x: x.lower())
-    developers = list(df_steam['developer'].unique()) 
-
-    df_steam = df_steam[df_steam['developer'] == desarrolladora]
-    if df_steam.empty:
-        del df_steam
-        return {f'Desarrolladora no encontrada: {desarrolladora}.': f'Desarrolladoras disponibles {", ".join(developers)}'}
+    df = pd.read_parquet('../CleanData/developer_reviews_analysis.parquet')
     
-    df_sent = pd.read_parquet('../sentiment_analysis_2.parquet', columns= ['item_id', 'sentiment_analysis_2'])
+    developers = list(df['developer'].unique()) 
 
-    df = df_sent.merge(df_steam,how= 'left', left_on= 'item_id', right_on='id')
+    df = df[df['developer'].isin([desarrolladora])].reset_index()
+    if len(df) == 0:
+        del df
+        return {f'Desarrolladora no encontrada: {desarrolladora}.': f'Desarrolladoras disponibles {", ".join(developers)}'}
 
-    del df_sent
-    del df_steam
-
-    df.drop(columns=['id', 'item_id'], inplace=True)
-
-    resultado = df[df['developer'] == desarrolladora]['sentiment_analysis_2'].value_counts()
+    resultado = {
+        desarrolladora: [f'Negative = {int(df["negativos"].values[0])}', f'Positive = {int(df["positivos"].values[0])}']
+    }
 
     del df
 
-    resultado_dic = {
-        desarrolladora: [f'Negative = {resultado[0]}', f'Positive = {resultado[2]}']
-    }
-
-    return resultado_dic
+    return resultado
 
 #-----------------------------------------ENDPOINT 6---------------------------------------#
 @app.get('/recomendacion_juego/{id_producto}')
