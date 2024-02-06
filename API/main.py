@@ -69,34 +69,20 @@ def userdata(user_id: str):
     if not isinstance(user_id, str):
         return {'Mensaje': 'El argumento user_id debe ser una cadena de texto.'}
 
-    df_user = pd.read_parquet('../CleanData/users_items.parquet', columns=['user_id', 'item_id', 'items_count'])
-    df_user = df_user[df_user['user_id'].isin([user_id])]
-    if df_user.empty:
-        del df_user
+    df = pd.read_parquet('../CleanData/userdata.parquet')
+    df= df[df['user_id'].isin([user_id])].reset_index(drop=True)
+    
+    if df.empty:
+        del df
         return {'Mensaje': 'Usuario no encontrado. Por favor ingrese un usuario válido'}
     
-    df_steam = pd.read_parquet('../CleanData/steam_games.parquet', columns= ['id', 'price'])
+    df = df.reset_index(drop=True)
 
-    df = df_user.merge(df_steam, how='left', left_on= 'item_id', right_on= 'id')
-    del df_user
-    del df_steam
-
-    dinero = df['price'].sum()
-    cantidad_items = df['items_count'].max()
-
-    del df
-
-    df_reviews = pd.read_parquet('../CleanData/reviews.parquet', columns= ['user_id', 'recommend'])
-    df_reviews = df_reviews[df_reviews['user_id'].isin([user_id])]
-    recom = df_reviews['recommend'].sum()
-
-    del df_reviews
-    
     resultado = {
         'Usuario': user_id,
-        'Dinero gastado': str(dinero) + ' USD',
-        '% de recomendación': str(round(recom / cantidad_items, 2)) + ' %',
-        'Cantidad de Items': int(cantidad_items)
+        'Dinero gastado': str(round(df.loc[0,'dinero_gastado'], 2)) + ' USD',
+        '% de recomendación': str(df.loc[0,'porcentaje_recom']) + ' %',
+        'Cantidad de Items': int(df.loc[0,'items_count'])
     }
 
     return resultado
@@ -119,7 +105,6 @@ def UserForGenre(genero: str):
         return {'Error': 'Género no encontrado. Ingrese un género válido'}
 
     df = df.groupby(['user_id', 'Año']).agg({'playtime_forever': 'sum'}).reset_index() 
-
 
     usuario_max_horas = df.nlargest(1, 'playtime_forever', 'all')['user_id'].values[0]
     df = df[df['user_id'] == usuario_max_horas]
