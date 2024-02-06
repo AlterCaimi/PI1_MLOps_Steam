@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 import pandas as pd 
+import polars as pl 
 from recommender_item_item import item_item_recom
 
 app = FastAPI()
@@ -90,32 +91,31 @@ def userdata(user_id: str):
 #-----------------------------------------ENDPOINT 3---------------------------------------#
 @app.get('/UserForGenre/{genero}')
 def UserForGenre(genero: str):
-    
+
     if not isinstance(genero, str):
         return {'Mensaje': 'El género ingresado debe ser una cadena de texto (string)'}
-    
-    genero = 'genre_' + genero
-    genero = genero.lower()
 
-    query_condition = genero + ' == 1'
+    genero = 'genre_' + genero.lower()
 
     try:
-        df = pd.read_parquet('../CleanData/userforgenre.parquet', columns=['user_id', 'Año', 'playtime_forever', genero]).query(query_condition).drop(columns=genero)
+        df = pl.read_parquet('../CleanData/userforgenre.parquet', columns=['user_id', 'Año', 'playtime_forever', genero])
+        df = df.filter(pl.col(genero) == 1)
     except Exception:
         return {'Error': 'Género no encontrado. Ingrese un género válido'}
 
-    df = df.groupby(['user_id', 'Año']).agg({'playtime_forever': 'sum'}).reset_index() 
+    df = df.group_by(['user_id', 'Año']).agg(pl.col('playtime_forever').sum())
 
-    usuario_max_horas = df.nlargest(1, 'playtime_forever', 'all')['user_id'].values[0]
-    df = df[df['user_id'] == usuario_max_horas]
-    df.reset_index(inplace=True, drop=True)
+    usuario_max_horas = df.sort('playtime_forever').tail(1)['user_id'][0]
+
+    df = df.filter(pl.col('user_id') == usuario_max_horas)
+    df = df.sort('Año')
     
     resultado = {
         f'Usuario con mas horas jugadas para el género {genero.replace("genre_", "")}:': usuario_max_horas,
-        'Horas jugadas:': [{'Año:': int(df.loc[i,'Año']), 'Horas:': float(round(df.loc[i,'playtime_forever']/60, 2))} for i in range(len(df))]
+        'Horas jugadas:': [{'Año:': int(df[i,'Año']), 'Horas:': float(round(df[i,'playtime_forever']/60, 2))} for i in range(len(df))]
     }
-
     del df
+    
     return resultado
 
 #-----------------------------------------ENDPOINT 4---------------------------------------#
