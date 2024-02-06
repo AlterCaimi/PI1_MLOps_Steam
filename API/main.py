@@ -7,11 +7,13 @@ app = FastAPI()
 #http://127.0.0.1:8000
 
 #-----------------------------------------INICIO-------------------------------------------#
+
 @app.get("/")
-def index():
+def index():                                                    # mensaje de inicio de la API
     return 'API desarrollada para el PI1 MLOps por Alter Caimi'
 
 #-----------------------------------------ENDPOINT 1---------------------------------------#
+
 @app.get('/developer/{desarrollador}')
 def developer(desarrollador: str):
     
@@ -22,40 +24,24 @@ def developer(desarrollador: str):
         desarrollador (str): Nombre del desarrollador.
 
     Returns:
-        pd.DataFrame: DataFrame con información sobre el desarrollador.
+        dict: Diccionario con información sobre el desarrollador.
     """
     
     if not isinstance(desarrollador, str):
         return {'Mensaje': 'El argumento "desarrollador" debe ser una cadena de texto (str).'}
     
-    df_steam = pd.read_parquet('../CleanData/steam_games.parquet', columns= ['id', 'developer', 'release_date', 'price'])
+    df = pd.read_parquet('../CleanData/developer.parquet')      # cargamos dataframe
 
-    df_steam['developer'] = df_steam['developer'].apply(lambda x: x.lower())
-    desarrolladores = df_steam['developer'].unique()
-    desarrollador = desarrollador.lower()
+    desarrollador = desarrollador.lower()                       # pasamos desarrollador ingresado a minúsculas
+    desarrolladores = list(df['developer'].unique())            # obtenemos lista de todos los desarrolladores
+    df = df[df['developer'].isin([desarrollador])].reset_index(drop=True)       # filtramos dataframe dejando info del desarrolador
 
-    if desarrollador not in desarrolladores:
-        del df_steam
-        return {'Mensaje': f'Desarrollador no encontrado. Inserte un desarrollador válido. Desarrolladores: {desarrolladores}'}
-    
-    df_steam = df_steam[df_steam['developer'] == desarrollador]
-    
-    df_steam['free'] = df_steam['price'].apply(lambda x: 1 if x == 0 else 0)
-    df_steam['Año'] = df_steam['release_date'].dt.year
+    if len(df) == 0:                                            # si el desarrollador está mal ingresado o no existe
+        del df
+        return {'Mensaje': f'Desarrollador no encontrado. Inserte un desarrollador válido. Desarrolladores: {", ".join(desarrolladores)}'}
 
-    df = df_steam.groupby(['Año', 'developer']).agg(
-                            {'id': 'count', 'free': lambda x: (x.sum() / x.count()) * 100}
-                        ).reset_index().rename(columns={'free': 'Contenido Free', 'id': 'Cantidad de Items'})
-    del df_steam
-    df['developer'] = df['developer'].apply(lambda x: x.lower())
-    
-    df = df[df['developer'] == desarrollador].drop(columns= 'developer').sort_values(by= 'Año', ascending=False)
-    df['Contenido Free'] = round(df['Contenido Free'], 2)
-    df['Contenido Free'] = df['Contenido Free'].apply(lambda x: str(x) + '%')
-    df.reset_index(drop=True, inplace=True)
-
-    resultado = {
-        f'Año {int(df.loc[i,"Año"])}': {'Cantidad de Items': int(df.loc[i, 'Cantidad de Items']), 'Contenido Free:': df.loc[i, 'Contenido Free']}
+    resultado = {                                               # armamos diccionario con los resultados
+        f'Año {int(df.loc[i,"Año"])}': {'Cantidad de Items': int(df.loc[i, 'Cantidad de Items']), 'Contenido Free:': str(df.loc[i, 'Contenido Free']) + ' %'}
         for i in range(len(df))
     }
 
@@ -63,22 +49,34 @@ def developer(desarrollador: str):
     return resultado
 
 #-----------------------------------------ENDPOINT 2---------------------------------------#
+
 @app.get('/userdata/{user_id}')
 def userdata(user_id: str):
+
+    '''
+    Recupera información de un usuario específico.
+
+    Args:
+        user_id (str): id del usuario
+    
+    Returns:
+        dict: Diccionario con información del usuario
+    
+    '''
 
     if not isinstance(user_id, str):
         return {'Mensaje': 'El argumento user_id debe ser una cadena de texto.'}
 
-    df = pd.read_parquet('../CleanData/userdata.parquet')
-    df= df[df['user_id'].isin([user_id])].reset_index(drop=True)
+    df = pd.read_parquet('../CleanData/userdata.parquet')               # cargamos dataframe desde archivo
+    df= df[df['user_id'].isin([user_id])].reset_index(drop=True)        # filtramos dataframe por usuario ingresado
     
-    if df.empty:
+    if df.empty:                # si el usuario ingresado está mal o no existe
         del df
         return {'Mensaje': 'Usuario no encontrado. Por favor ingrese un usuario válido'}
     
-    df = df.reset_index(drop=True)
+    df = df.reset_index(drop=True)                                      # reset index luego de filtrar
 
-    resultado = {
+    resultado = {                                                       # armamos diccionario con los resultados
         'Usuario': user_id,
         'Dinero gastado': str(round(df.loc[0,'dinero_gastado'], 2)) + ' USD',
         '% de recomendación': str(df.loc[0,'porcentaje_recom']) + ' %',
@@ -88,8 +86,20 @@ def userdata(user_id: str):
     return resultado
 
 #-----------------------------------------ENDPOINT 3---------------------------------------#
+
 @app.get('/UserForGenre/{genero}')
 def UserForGenre(genero: str):
+
+    '''
+    Recupera información de un género específico.
+
+    Args:
+        género (str): género de videojuego
+    
+    Returns:
+        dict: Diccionario con información del género
+    
+    '''
 
     if not isinstance(genero, str):
         return {'Mensaje': 'El género ingresado debe ser una cadena de texto (string)'}
@@ -115,6 +125,17 @@ def UserForGenre(genero: str):
 #-----------------------------------------ENDPOINT 4---------------------------------------#
 @app.get('/best_developer_year/{anio}')
 def best_developer_year(anio: int):
+
+    '''
+    Recupera información de un año específico.
+
+    Args:
+        anio (int): Año a considerar
+    
+    Returns:
+        dict: Diccionario con el top 3 de desasrrolladores para ese año
+    
+    '''
 
     try:
         anio = int(anio)
@@ -144,6 +165,17 @@ def best_developer_year(anio: int):
 #-----------------------------------------ENDPOINT 5---------------------------------------#
 @app.get('/developer_reviews_analysis/{desarrolladora}')
 def developer_reviews_analysis(desarrolladora: str):
+
+    '''
+    Recupera información de un desarrollador específico.
+
+    Args:
+        desarrolladora (str): Desarrolladora a considerar.
+    
+    Returns:
+        dict: Diccionario con la cantidad de reviews positivos y negativos para esa desarrolladora.
+    
+    '''
 
     if not isinstance(desarrolladora, str):
         return {'Mensaje': 'Debe ingresar una cadena de texto'}
